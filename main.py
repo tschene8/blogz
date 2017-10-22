@@ -1,37 +1,36 @@
-from flask import Flask, request, redirect, render_template, session
-from flask_sqlalchemy import SQLAlchemy
-
-app = Flask(__name__)
-app.config['DEBUG'] = True
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://blogz:1234@localhost:8889/blogz'
-app.config['SQLALCHEMY_ECHO'] = True
-db = SQLAlchemy(app)
-
-class Blog(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(120), nullable=False)
-    body = db.Column(db.String(1000), nullable=False)
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-
-    def __init__(self, title, body, owner):
-        self.title = title
-        self.body = body
-        self.owner = owner
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(25), unique=True)
-    password = db.Column(db.String(25))
-    blogs = db.relationship('Blog', backref='owner')
-
-    def __init__(self, username, password):
-        self.username = username
-        self.password = password
+from flask import request, redirect, render_template, session, flash
+from app import app, db
+from models import Blog, User
 
 
 @app.route('/')
 def index():
     return redirect('/blog')
+
+@app.route('/login', methods=['POST', 'GET'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username).first()
+
+        username_error = ""
+        password_error = ""
+
+        if user and user.password == password:
+            session['username'] = username
+            flash('Logged in')
+            return redirect('/newpost')
+        elif not user:
+            username_error = "incorrect username"
+            return render_template("login.html", username=username,
+            username_error=username_error, password_error=password_error)
+        elif user and user.password != password:
+            password_error = "incorrect password"
+            return render_template("login.html", username=username,
+            username_error=username_error, password_error=password_error)
+    return render_template("login.html")
+            
 
 @app.route('/blog', methods=['POST', 'GET'])
 def blog():
