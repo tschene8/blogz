@@ -8,6 +8,13 @@ def index():
     users = User.query.order_by(User.username).all()
     return render_template("index.html", users=users)
 
+@app.before_request
+def require_login():
+    allowed_routes = ['index', 'signup', 'login', 'blog']
+    if request.endpoint not in allowed_routes and 'username' not in session:
+        flash('must be logged in')
+        return redirect('/login')
+
 @app.route('/login', methods=['POST', 'GET'])
 def login():
     if request.method == 'POST':
@@ -70,7 +77,13 @@ def blog():
         id = request.args.get('id')
         title = Blog.query.filter_by(id=id).first().title
         body = Blog.query.filter_by(id=id).first().body
-        return render_template("post.html", title=title, body=body)
+        owner = Blog.query.filter_by(id=id).first().owner
+        return render_template("single_entry.html", title=title, body=body, owner=owner)
+    elif request.args.get('user'):
+        id = request.args.get('user')
+        owner_id = Blog.query.filter_by(id=id).first().owner_id
+        users_blogs = Blog.query.filter_by(owner_id=id).all()
+        return render_template("single_user.html", users_blogs=users_blogs)
     else:
         return render_template("blog.html", blogs=blogs)
 
@@ -105,6 +118,7 @@ def newpost():
 @app.route('/logout')
 def logout():
     del session['username']
+    flash('logged out')
     return redirect('/blog')
 
 if __name__ == "__main__":
