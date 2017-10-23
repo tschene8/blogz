@@ -3,9 +3,10 @@ from app import app, db
 from models import Blog, User
 
 
-@app.route('/')
+@app.route('/', methods=['POST', 'GET'])
 def index():
-    return redirect('/blog')
+    users = User.query.order_by(User.username).all()
+    return render_template("index.html", users=users)
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
@@ -30,6 +31,36 @@ def login():
             return render_template("login.html", username=username,
             username_error=username_error, password_error=password_error)
     return render_template("login.html")
+
+@app.route('/signup', methods=['POST', 'GET'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        verify = request.form['verify']
+        username_error = ""
+        password_error = ""
+        verify_error = ""
+        username_exists = User.query.filter_by(username=username).first()
+        if not username_exists and len(username) >= 3 and len(password) >= 3 and password == verify:
+            new_user = User(username, password)
+            db.session.add(new_user)
+            db.session.commit()
+            session['username'] = username
+            return redirect('/newpost')
+        else:
+            if username_exists:
+                username_error = "username already exists"
+            if len(username) < 3:
+                username_error = "username must be at least 3 characters long"
+            if len(password) < 3:
+                password_error = "password must be at least 3 characters long"
+            if verify != password:
+                verify_error = "passwords do not match"
+            return render_template("signup.html", username=username, username_error=username_error,
+                password_error=password_error, verify_error=verify_error)
+    else:
+        return render_template("signup.html")
             
 
 @app.route('/blog', methods=['POST', 'GET'])
@@ -70,6 +101,11 @@ def newpost():
         db.session.add(new_post)
         db.session.commit()
         return redirect("/blog?id=" + str(new_post.id))
+
+@app.route('/logout')
+def logout():
+    del session['username']
+    return redirect('/blog')
 
 if __name__ == "__main__":
     app.run()
